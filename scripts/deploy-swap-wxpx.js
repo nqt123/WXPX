@@ -30,12 +30,15 @@ async function main() {
 
   const swapWxpx = await SwapWxpx.deploy(wXPX.address);
   await swapWxpx.deployed();
-  
+
   console.log("Deployed Swap WXPX at:", swapWxpx.address);
 
   // Grant minter / burner role
-  await wXPX.grantRole(hre.ethers.utils.formatBytes32String('MINTER_ROLE'), swapWxpx.address);
-  await wXPX.grantRole(hre.ethers.utils.formatBytes32String('BURNER_ROLE'), swapWxpx.address);
+  const bytes32MinterRole = hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes('MINTER_ROLE'));
+  const bytes32BurnerRole = hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes('BURNER_ROLE'));
+  
+  await wXPX.grantRole(bytes32MinterRole, swapWxpx.address);
+  await wXPX.grantRole(bytes32BurnerRole, swapWxpx.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
