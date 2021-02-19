@@ -60,15 +60,48 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         _;
     }
 
-    // Pause functions
+    // External functions
+    //
+    // function burn(uint amount, string xpxAddress) external returns (bool) {
+    //     string memory depositAddress = xpxAddress;
+    //     require(!isEmptyString(depositAddress), "SwapWXPX::Merchant asset deposit address was not set"); 
 
+    //     uint nonce = burnRequests.length;
+    //     uint timestamp = _getTimestamp();
+
+    //     // set txid as empty since it is not known yet.
+    //     string memory txid = "";
+
+    //     Request memory request = Request({
+    //         requester: msg.sender,
+    //         amount: amount,
+    //         depositAddress: depositAddress,
+    //         txid: txid,
+    //         nonce: nonce,
+    //         timestamp: timestamp,
+    //         status: RequestStatus.PENDING
+    //     });
+
+    //     bytes32 requestHash = calcRequestHash(request);
+    //     burnRequestNonce[requestHash] = nonce; 
+    //     burnRequests.push(request);
+
+    //     require(controller.getToken().transferFrom(msg.sender, controller, amount), "transfer tokens to burn failed");
+    //     require(controller.burn(amount), "burn failed");
+
+    //     emit Burned(nonce, msg.sender, amount, depositAddress, timestamp, requestHash);
+    //     return true;
+    // }
+
+    // Public functions
+    //
     /**
      * @notice Pauses all request.
      * Requirements:
      * - contract is unpausing
      * - the caller must have the `PAUSER_ROLE`.
      */
-    function pause() public whenNotPaused virtual {
+    function pause() public virtual whenNotPaused {
         require(hasRole(PAUSER_ROLE, _msgSender()),"SwapWXPX::Must have pauser role to pause");
         _pause();
     }
@@ -80,12 +113,28 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
      * - contract is paused
      * - the caller must have the `PAUSER_ROLE`.
     */
-    function unpause() public whenPaused virtual {
+    function unpause() public virtual whenPaused {
         require(hasRole(PAUSER_ROLE, _msgSender()), "SwapWXPX::Must have pauser role to unpause");
         _unpause();
     }
 
-    function _calcRequestHash(Request memory request) internal pure returns (bytes32) {
+    // Internal functions
+    //
+    function getPendingMintRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
+        require(requestHash != 0, "request hash is 0");
+        nonce = mintRequestNonce[requestHash];
+        request = mintRequests[nonce];
+        validatePendingRequest(request, requestHash);
+    }
+
+    function getPendingBurnRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
+        require(requestHash != 0, "request hash is 0");
+        nonce = burnRequestNonce[requestHash];
+        request = burnRequests[nonce];
+        validatePendingRequest(request, requestHash);
+    }
+
+    function calcRequestHash(Request memory request) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             request.requester,
             request.amount,
@@ -96,34 +145,20 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         ));
     }
 
-    function _getPendingMintRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
-        require(requestHash != 0, "request hash is 0");
-        nonce = mintRequestNonce[requestHash];
-        request = mintRequests[nonce];
-        _validatePendingRequest(request, requestHash);
-    }
-
-    function _getPendingBurnRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
-        require(requestHash != 0, "request hash is 0");
-        nonce = burnRequestNonce[requestHash];
-        request = burnRequests[nonce];
-        _validatePendingRequest(request, requestHash);
-    }
-
-    function _validatePendingRequest(Request memory request, bytes32 requestHash) internal pure {
+    function validatePendingRequest(Request memory request, bytes32 requestHash) internal pure {
         require(request.status == RequestStatus.PENDING, "SwapWXPX::Request is not pending");
-        require(requestHash == _calcRequestHash(request), "SwapWXPX::Given request hash does not match a pending request");
+        require(requestHash == calcRequestHash(request), "SwapWXPX::Given request hash does not match a pending request");
     }
 
-    function _compareStrings (string memory a, string memory b) internal pure returns (bool) {
+    function compareStrings (string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
     }
 
-    function _isEmptyString (string memory a) internal pure returns (bool) {
-        return (_compareStrings(a, ""));
+    function isEmptyString (string memory a) internal pure returns (bool) {
+        return (compareStrings(a, ""));
     }
 
-    function _getStatusString(RequestStatus status) internal pure returns (string memory) {
+    function getStatusString(RequestStatus status) internal pure returns (string memory) {
         if (status == RequestStatus.PENDING) {
             return "pending";
         } else if (status == RequestStatus.CANCELED) {
@@ -136,5 +171,10 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
             // this fallback can never be reached.
             return "unknown";
         }
+    }
+    // Private functions
+    function _getTimestamp() private view returns (uint) {
+        // timestamp is only used for data maintaining purpose, it is not relied on for critical logic.
+        return block.timestamp; // solhint-disable-line not-rely-on-time
     }
 }
