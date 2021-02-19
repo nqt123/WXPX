@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
+
     bytes32 public constant CUSTODIAN = keccak256("CUSTODIAN");
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
@@ -33,8 +34,11 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
     // mapping between a burn request hash and the corresponding request nonce.
     mapping(bytes32 => uint) public burnRequestNonce;
 
+    Request[] public mintRequests;
+    Request[] public burnRequests;
+
     constructor(WXPX _token) {
-        require(address(_token) != address(0), "SwapWXPX::INVALID_TOKEN_ADDRESS");
+        require(address(_token) != address(0), "SwapWXPX::Invalid token address");
 
         token = WXPX(_token);
 
@@ -52,7 +56,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
      * @notice Modifier to make a function callable only by custodian.
      */
     modifier onlyCustodian() {
-        require(hasRole(CUSTODIAN, msg.sender), "SwapWXPX::NOT_AUTHORIZED");
+        require(hasRole(CUSTODIAN, msg.sender), "SwapWXPX::Not authorized");
         _;
     }
 
@@ -65,7 +69,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
      * - the caller must have the `PAUSER_ROLE`.
      */
     function pause() public whenNotPaused virtual {
-        require(hasRole(PAUSER_ROLE, _msgSender()),"WXPX: must have pauser role to pause");
+        require(hasRole(PAUSER_ROLE, _msgSender()),"SwapWXPX::Must have pauser role to pause");
         _pause();
     }
 
@@ -77,7 +81,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
      * - the caller must have the `PAUSER_ROLE`.
     */
     function unpause() public whenPaused virtual {
-        require(hasRole(PAUSER_ROLE, _msgSender()), "WXPX: must have pauser role to unpause");
+        require(hasRole(PAUSER_ROLE, _msgSender()), "SwapWXPX::Must have pauser role to unpause");
         _unpause();
     }
 
@@ -92,17 +96,45 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         ));
     }
 
-    function getPendingMintRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
+    function _getPendingMintRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
         require(requestHash != 0, "request hash is 0");
         nonce = mintRequestNonce[requestHash];
         request = mintRequests[nonce];
-        validatePendingRequest(request, requestHash);
+        _validatePendingRequest(request, requestHash);
     }
 
-    function getPendingBurnRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
+    function _getPendingBurnRequest(bytes32 requestHash) internal view returns (uint nonce, Request memory request) {
         require(requestHash != 0, "request hash is 0");
         nonce = burnRequestNonce[requestHash];
         request = burnRequests[nonce];
-        validatePendingRequest(request, requestHash);
+        _validatePendingRequest(request, requestHash);
+    }
+
+    function _validatePendingRequest(Request memory request, bytes32 requestHash) internal pure {
+        require(request.status == RequestStatus.PENDING, "SwapWXPX::Request is not pending");
+        require(requestHash == _calcRequestHash(request), "SwapWXPX::Given request hash does not match a pending request");
+    }
+
+    function _compareStrings (string memory a, string memory b) internal pure returns (bool) {
+        return (keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b)));
+    }
+
+    function _isEmptyString (string memory a) internal pure returns (bool) {
+        return (_compareStrings(a, ""));
+    }
+
+    function _getStatusString(RequestStatus status) internal pure returns (string memory) {
+        if (status == RequestStatus.PENDING) {
+            return "pending";
+        } else if (status == RequestStatus.CANCELED) {
+            return "canceled";
+        } else if (status == RequestStatus.APPROVED) {
+            return "approved";
+        } else if (status == RequestStatus.REJECTED) {
+            return "rejected";
+        } else {
+            // this fallback can never be reached.
+            return "unknown";
+        }
     }
 }
