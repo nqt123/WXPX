@@ -37,6 +37,17 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
     Request[] public mintRequests;
     Request[] public burnRequests;
 
+    // events
+    //
+    event Burned(
+        uint indexed nonce,
+        address indexed requester,
+        uint amount,
+        string depositAddress,
+        uint timestamp,
+        bytes32 requestHash
+    );
+
     constructor(WXPX _token) {
         require(address(_token) != address(0), "SwapWXPX::Invalid token address");
 
@@ -46,10 +57,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         _setupRole(PAUSER_ROLE, msg.sender);
     }
     
-
-    // events
-
-
     // modifiers
 
     /**
@@ -62,36 +69,36 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
 
     // External functions
     //
-    // function burn(uint amount, string xpxAddress) external returns (bool) {
-    //     string memory depositAddress = xpxAddress;
-    //     require(!isEmptyString(depositAddress), "SwapWXPX::Merchant asset deposit address was not set"); 
+    function burn(uint256 amount, string memory xpxAddress) external returns (bool) {
+        string memory depositAddress = xpxAddress;
+        require(!isEmptyString(depositAddress), "SwapWXPX::Asset deposit address was not set"); 
 
-    //     uint nonce = burnRequests.length;
-    //     uint timestamp = _getTimestamp();
+        uint nonce = burnRequests.length;
+        uint timestamp = _getTimestamp();
 
-    //     // set txid as empty since it is not known yet.
-    //     string memory txid = "";
+        // set txid as empty since it is not known yet.
+        string memory txid = "";
 
-    //     Request memory request = Request({
-    //         requester: msg.sender,
-    //         amount: amount,
-    //         depositAddress: depositAddress,
-    //         txid: txid,
-    //         nonce: nonce,
-    //         timestamp: timestamp,
-    //         status: RequestStatus.PENDING
-    //     });
+        Request memory request = Request({
+            requester: msg.sender,
+            amount: amount,
+            depositAddress: depositAddress,
+            txid: txid,
+            nonce: nonce,
+            timestamp: timestamp,
+            status: RequestStatus.PENDING
+        });
 
-    //     bytes32 requestHash = calcRequestHash(request);
-    //     burnRequestNonce[requestHash] = nonce; 
-    //     burnRequests.push(request);
+        bytes32 requestHash = calcRequestHash(request);
+        burnRequestNonce[requestHash] = nonce; 
+        burnRequests.push(request);
 
-    //     require(controller.getToken().transferFrom(msg.sender, controller, amount), "transfer tokens to burn failed");
-    //     require(controller.burn(amount), "burn failed");
+        require(_deliverTokensFrom(msg.sender, address(this), amount), "SwapWXPX::Transfer tokens to burn failed");
+        require(_tokenBurn(amount), "SwapWXPX::Burn failed");
 
-    //     emit Burned(nonce, msg.sender, amount, depositAddress, timestamp, requestHash);
-    //     return true;
-    // }
+        emit Burned(nonce, msg.sender, amount, depositAddress, timestamp, requestHash);
+        return true;
+    }
 
     // Public functions
     //
@@ -177,4 +184,28 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         // timestamp is only used for data maintaining purpose, it is not relied on for critical logic.
         return block.timestamp; // solhint-disable-line not-rely-on-time
     }
+
+    /**
+    * @dev Source of tokens
+    * @param _from Address performing the token purchase
+    * @param _to Address receiving the token purchase
+    * @param _tokenAmount Number of tokens to be transfer
+    */
+    function _deliverTokensFrom(
+        address _from,
+        address _to,
+        uint256 _tokenAmount
+    )
+      private
+      returns (bool)
+    {
+      token.transferFrom(_from, _to, _tokenAmount);
+      return true;
+    }
+
+    function _tokenBurn(uint256 amount) private returns (bool) {
+      token.burn(amount);
+      return true;
+    }
+
 }
