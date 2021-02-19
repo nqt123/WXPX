@@ -19,7 +19,6 @@ async function main() {
   console.log("Deploying WXPX");
   const wXPX = await WXPX.deploy("Wrapped XPX", "WXPX", 18);
   await wXPX.deployed();
-
   console.log("Deployed WXPX at:", wXPX.address);
 }
 
