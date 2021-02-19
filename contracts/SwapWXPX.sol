@@ -47,6 +47,16 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         bytes32 requestHash
     );
 
+    event BurnConfirmed(
+        uint indexed nonce,
+        address indexed requester,
+        uint amount,
+        string depositAddress,
+        string txid,
+        uint256 timestamp,
+        bytes32 inputRequestHash
+    );
+
     constructor(WXPX _token) {
         require(address(_token) != address(0), "SwapWXPX::Invalid token address");
 
@@ -70,7 +80,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
     //
     function burn(uint256 amount, string memory xpxAddress) external returns (bool) {
         string memory depositAddress = xpxAddress;
-        require(!isEmptyString(depositAddress), "SwapWXPX::Asset deposit address was not set"); 
+        require(!isEmptyString(depositAddress), "SwapWXPX::Deposit address was not set"); 
 
         uint nonce = burnRequests.length;
 
@@ -94,6 +104,30 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         require(_tokenBurn(amount), "SwapWXPX::Burn failed");
 
         emit Burned(nonce, msg.sender, amount, depositAddress, block.timestamp, requestHash);
+        return true;
+    }
+
+    function confirmBurnRequest(bytes32 requestHash, string memory txid) external onlyCustodian returns (bool) {
+        uint nonce;
+        Request memory request;
+
+        require(!isEmptyString(txid), "SwapWXPX::Txid invalid"); 
+
+        (nonce, request) = getPendingBurnRequest(requestHash);
+
+        burnRequests[nonce].txid = txid;
+        burnRequests[nonce].status = RequestStatus.APPROVED;
+        burnRequestNonce[calcRequestHash(burnRequests[nonce])] = nonce;
+
+        emit BurnConfirmed(
+            request.nonce,
+            request.requester,
+            request.amount,
+            request.depositAddress,
+            txid,
+            block.timestamp,
+            requestHash
+        );
         return true;
     }
 
@@ -175,7 +209,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
 
     function validatePendingRequest(Request memory request, bytes32 requestHash) internal pure {
         require(request.status == RequestStatus.PENDING, "SwapWXPX::Request is not pending");
-        require(requestHash == calcRequestHash(request), "SwapWXPX::Given request hash does not match a pending request");
+        require(requestHash == calcRequestHash(request), "SwapWXPX::Request hash does not match a pending request");
     }
 
     function compareStrings (string memory a, string memory b) internal pure returns (bool) {
