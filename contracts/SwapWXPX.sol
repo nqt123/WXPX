@@ -24,7 +24,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         string depositAddress; // User's XPX deposit address in burn, user's ETH address in mint
         string txid; // Assets txid for sending / redemming asset in the burn / mint process
         uint nonce; // Serial number allocated for each request
-        uint timestamp; // Time of the request creation.
         RequestStatus status; // Status of the request.
     }
 
@@ -44,7 +43,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         address indexed requester,
         uint amount,
         string depositAddress,
-        uint timestamp,
+        uint256 timestamp,
         bytes32 requestHash
     );
 
@@ -74,7 +73,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         require(!isEmptyString(depositAddress), "SwapWXPX::Asset deposit address was not set"); 
 
         uint nonce = burnRequests.length;
-        uint timestamp = _getTimestamp();
 
         // set txid as empty since it is not known yet.
         string memory txid = "";
@@ -85,7 +83,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
             depositAddress: depositAddress,
             txid: txid,
             nonce: nonce,
-            timestamp: timestamp,
             status: RequestStatus.PENDING
         });
 
@@ -96,7 +93,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         require(_deliverTokensFrom(msg.sender, address(this), amount), "SwapWXPX::Transfer tokens to burn failed");
         require(_tokenBurn(amount), "SwapWXPX::Burn failed");
 
-        emit Burned(nonce, msg.sender, amount, depositAddress, timestamp, requestHash);
+        emit Burned(nonce, msg.sender, amount, depositAddress, block.timestamp, requestHash);
         return true;
     }
 
@@ -109,7 +106,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
             uint amount,
             string memory depositAddress,
             string memory txid,
-            uint timestamp,
             string memory status,
             bytes32 requestHash
         )
@@ -122,7 +118,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         amount = request.amount;
         depositAddress = request.depositAddress;
         txid = request.txid;
-        timestamp = request.timestamp;
         status = statusString;
         requestHash = calcRequestHash(request);
     }
@@ -174,8 +169,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
             request.amount,
             request.depositAddress,
             request.txid,
-            request.nonce,
-            request.timestamp
+            request.nonce
         ));
     }
 
@@ -207,11 +201,6 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         }
     }
     // Private functions
-    function _getTimestamp() private view returns (uint) {
-        // timestamp is only used for data maintaining purpose, it is not relied on for critical logic.
-        return block.timestamp; // solhint-disable-line not-rely-on-time
-    }
-
     /**
     * @dev Source of tokens
     * @param _from Address performing the token purchase
