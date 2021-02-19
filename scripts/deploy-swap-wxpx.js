@@ -44,8 +44,11 @@ async function main() {
   await wXPX.grantRole(bytes32BurnerRole, swapWxpx.address);
 
   // Auto-verify after deploy
-  const verifyWxpx = await verifyContract(wXPX.address, [tokenName, symbol, decimals]);
-  const verifySwapWxpx = await verifyContract(swapWxpx.address, [wXPX.address]);
+  await verifyContract(wXPX.address, [tokenName, symbol, decimals]);
+  await verifyContract(swapWxpx.address, [wXPX.address]);
+
+  console.log("Deployed WXPX at:", wXPX.address);
+  console.log("Deployed Swap WXPX at:", swapWxpx.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

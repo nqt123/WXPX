@@ -78,7 +78,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
 
     // External functions
     //
-    function burn(uint256 amount, string memory xpxAddress) external returns (bool) {
+    function swapTokenToXpx(uint256 amount, string memory xpxAddress) external returns (bool) {
         string memory depositAddress = xpxAddress;
         require(!isEmptyString(depositAddress), "SwapWXPX::Deposit address was not set"); 
 
@@ -101,13 +101,12 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         burnRequests.push(request);
 
         require(_deliverTokensFrom(msg.sender, address(this), amount), "SwapWXPX::Transfer tokens to burn failed");
-        require(_tokenBurn(amount), "SwapWXPX::Burn failed");
 
         emit Burned(nonce, msg.sender, amount, depositAddress, block.timestamp, requestHash);
         return true;
     }
 
-    function confirmBurnRequest(bytes32 requestHash, string memory txid) external onlyCustodian returns (bool) {
+    function confirmBurnTokenToXpxRequest(bytes32 requestHash, string memory txid) external onlyCustodian returns (bool) {
         uint nonce;
         Request memory request;
 
@@ -117,8 +116,8 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
 
         burnRequests[nonce].txid = txid;
         burnRequests[nonce].status = RequestStatus.APPROVED;
-        burnRequestNonce[calcRequestHash(burnRequests[nonce])] = nonce;
-
+        require(_tokenBurn(burnRequests[nonce].amount), "SwapWXPX::Burn failed");
+        
         emit BurnConfirmed(
             request.nonce,
             request.requester,
