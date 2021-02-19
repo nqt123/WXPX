@@ -37,8 +37,18 @@ contract WXPX is Context, AccessControl, ERC20Burnable, ERC20Pausable {
      * - the caller must have the `CUSTODIAN`.
      */
     function mint(address to, uint256 amount) public virtual {
-        require(hasRole(CUSTODIAN, _msgSender()), "ERC20PresetMinterPauser: must have minter role to mint");
+        require(hasRole(CUSTODIAN, _msgSender()), "ERC20PresetMinterPauser: must have custodian role to mint");
         _mint(to, amount);
+    }
+
+    /**
+     * @dev Destroys `amount` tokens from the caller.
+     *
+     * See {ERC20-_burn}.
+     */
+    function burn(uint256 amount) public override virtual {
+        require(hasRole(CUSTODIAN, _msgSender()), "ERC20PresetMinterPauser: must have custodian role to burn");
+        super.burn(amount);
     }
 
     /**
