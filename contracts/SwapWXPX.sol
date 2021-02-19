@@ -78,7 +78,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
 
     // External functions
     //
-    function swapTokenToXpx(uint256 amount, string memory xpxAddress) external returns (bool) {
+    function swapWxpxTokenToXpx(uint256 amount, string memory xpxAddress) external returns (bool) {
         string memory depositAddress = xpxAddress;
         require(!isEmptyString(depositAddress), "SwapWXPX::Deposit address was not set"); 
 
@@ -106,7 +106,7 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         return true;
     }
 
-    function confirmBurnTokenToXpxRequest(bytes32 requestHash, string memory txid) external onlyCustodian returns (bool) {
+    function confirmBurnWxpxTokenToXpxRequest(bytes32 requestHash, string memory txid) external onlyCustodian returns (bool) {
         uint nonce;
         Request memory request;
 
