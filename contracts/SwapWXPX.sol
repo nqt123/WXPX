@@ -100,6 +100,33 @@ contract SwapWXPX is Ownable, AccessControl, Pausable, ReentrancyGuard {
         return true;
     }
 
+    function getBurnRequest(uint nonce)
+        external
+        view
+        returns (
+            uint requestNonce,
+            address requester,
+            uint amount,
+            string memory depositAddress,
+            string memory txid,
+            uint timestamp,
+            string memory status,
+            bytes32 requestHash
+        )
+    {
+        Request storage request = burnRequests[nonce];
+        string memory statusString = getStatusString(request.status); 
+
+        requestNonce = request.nonce;
+        requester = request.requester;
+        amount = request.amount;
+        depositAddress = request.depositAddress;
+        txid = request.txid;
+        timestamp = request.timestamp;
+        status = statusString;
+        requestHash = calcRequestHash(request);
+    }
+    
     // Public functions
     //
     /**

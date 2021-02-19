@@ -6,6 +6,9 @@
 const hre = require("hardhat");
 
 async function main() {
+  const tokenName = "Wrapped XPX";
+  const symbol = "WXPX";
+  const decimals = 18;
   // Hardhat always runs the compile task when running scripts with its command
   // line interface.
   //
@@ -18,7 +21,7 @@ async function main() {
 
   console.log("Deploying WXPX");
 
-  const wXPX = await WXPX.deploy("Wrapped XPX", "WXPX", 18);
+  const wXPX = await WXPX.deploy(tokenName, symbol, decimals);
   await wXPX.deployed();
 
   console.log("Deployed WXPX at:", wXPX.address);
@@ -36,13 +39,24 @@ async function main() {
   // Grant minter / burner role
   const bytes32MinterRole = hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes('MINTER_ROLE'));
   const bytes32BurnerRole = hre.ethers.utils.keccak256(hre.ethers.utils.toUtf8Bytes('BURNER_ROLE'));
-  
+
   await wXPX.grantRole(bytes32MinterRole, swapWxpx.address);
   await wXPX.grantRole(bytes32BurnerRole, swapWxpx.address);
+
+  // Auto-verify after deploy
+  const verifyWxpx = await verifyContract(wXPX.address, [tokenName, symbol, decimals]);
+  const verifySwapWxpx = await verifyContract(swapWxpx.address, [wXPX.address]);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
+
+const verifyContract = async (contractAddress, [...args]) => {
+  await hre.run("verify:verify", {
+    address: contractAddress,
+    constructorArguments: args,
+  })
+}
 main()
   .then(() => process.exit(0))
   .catch(error => {
