@@ -42,6 +42,7 @@ async function main() {
 
   await wXPX.grantRole(bytes32MinterRole, swapWxpx.address);
   await wXPX.grantRole(bytes32BurnerRole, swapWxpx.address);
+  await wXPX.mint('0xd1C7BD89165f4c82e95720574e327fa2248F9cf2', hre.ethers.utils.parseUnits('10000', 18));
 
   // Auto-verify after deploy
   await verifyContract(wXPX.address, [tokenName, symbol, decimals]);
